@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from skimage.transform import rescale
-from sklearn.neighbors import NearestNeighbors
+from sklearn.neighbors import LSHForest
 
 # Hyperparameters
 L = 1
@@ -30,6 +30,10 @@ A_PRIME_NAME = 'A_prime.jpg'
 B_NAME = 'B.jpg'
 B_PRIME_NAME = 'B_prime.jpg'
 
+# Feature Vector Storage
+vector_cache = {}
+lshf_cache = {}
+
 # Feature Extraction
 def get_features_and_pixels(i, j, offset_size, l, pyramid, kernel):
 	features, pixels = [], []
@@ -48,7 +52,9 @@ def get_features_only(pixels, l, pyramid):
 		features.append((pyramid[l][i_prime][j_prime], weight))
 	return features
 
-def construct_F(i, j, l, pyramid, pyramid_prime, pixels=None):
+def construct_F(i, j, l, pyramid, pyramid_prime, pixels=None, is_A=True):
+	if (i, j, l, is_A) in vector_cache:
+		return vector_cache[(i, j, l, is_A)]
 	if pixels:
 		high_res_bp_features = get_features_only(pixels[0], l, pyramid_prime)
 		high_res_b_features = get_features_only(pixels[1], l, pyramid)
@@ -58,6 +64,7 @@ def construct_F(i, j, l, pyramid, pyramid_prime, pixels=None):
 			features = high_res_bp_features + high_res_b_features + low_res_bp_features + low_res_b_features
 		else:
 			features = high_res_bp_features + high_res_b_features
+		vector_cache[(i, j, l, is_A)] = features
 		return features
 	else:
 		high_res_bp_features, high_res_bp_pixels = get_features_and_pixels(i, j, 2, l, pyramid_prime, GAUSSIAN_LARGE)
@@ -70,6 +77,7 @@ def construct_F(i, j, l, pyramid, pyramid_prime, pixels=None):
 		else:
 			features = high_res_bp_features + high_res_b_features
 			pixels = [high_res_bp_pixels, high_res_b_pixels]
+		vector_cache[(i, j, l, is_A)] = features
 		return features, pixels
 
 # Construction Methods
@@ -88,6 +96,24 @@ def construct_normalized_vector(F, feature_size=3):
 		i = i + feature_size
 	return feature_vector / np.linalg.norm(feature_vector), weights
 
+def construct_lshf(pyramid, prime_pyramid, l, pixels):
+	if l in lshf_cache:
+		return lshf_cache[l]
+
+	X_train, idx_map, idx = [], {}, 0
+	for i_a in range(prime_pyramid[l].shape[0]):
+		for j_a in range(prime_pyramid[l].shape[1]):
+	 		features = construct_F(i_a, j_a, l, pyramid, prime_pyramid, pixels=pixels)
+	 		X_train.append(construct_normalized_vector(features)[0])
+	 		idx_map[idx] = (i_a, j_a)
+	X_train = np.array(X_train)
+
+	# Construct LSHF
+	lshf = LSHForest()
+	lshf.fit(X_train)
+	lshf_cache[l] = (lshf, X_train, idx_map)
+	return lshf, X_train, idx_map
+
 def compute_weighted_difference(normalized_1, weights_1, normalized_2, weights_2):
 	difference = np.zeros(normalized_1.shape)
 	for i in range(normalized_1.shape[0]):
@@ -102,7 +128,12 @@ def compute_distance(F_1, F_2):
 
 # Texture Synthesis
 def best_approximate_match(A_pyramid, A_prime_pyramid, B_pyramid, B_prime_pyramid, s, l, i_b, j_b):
-	return (0, 0)
+	# Construct feature vectors
+	features, pixels = construct_F(i_b, j_b, l, B_pyramid, B_prime_pyramid, is_A=False)
+	query = np.array([construct_normalized_vector(features)[0]])
+	lshf, X_train, idx_map = construct_lshf(A_pyramid, A_prime_pyramid, l, pixels)
+	_, indices = lshf.kneighbors(query, n_neighbors=1)
+	return idx_map[indices[0][0]]
 
 def best_coherence_match(A_pyramid, A_prime_pyramid, B_pyramid, B_prime_pyramid, s, l, i, j):
 	best_i_prime, best_j_prime, min_norm = None, None, float("inf")
@@ -111,7 +142,7 @@ def best_coherence_match(A_pyramid, A_prime_pyramid, B_pyramid, B_prime_pyramid,
 			i_prime, j_prime = i + i_offset, j + j_offset
 			if i_prime >= 0 and i_prime < B_prime_pyramid[l].shape[0] and j_prime >= 0 and j_prime < B_prime_pyramid[l].shape[1] and (i_prime, j_prime) in s:
 				F_1, pixels = construct_F(i - i_prime + s[(i_prime, j_prime)][0], j - j_prime + s[(i_prime, j_prime)][1], l, A_pyramid, A_prime_pyramid)
-				F_2 = construct_F(i, j, l, B_pyramid, B_prime_pyramid, pixels=pixels)
+				F_2 = construct_F(i, j, l, B_pyramid, B_prime_pyramid, pixels=pixels, is_A=False)
 				norm = compute_distance(F_1, F_2)
 				if norm < min_norm:
 					best_i_prime, best_j_prime, min_norm = i_prime, j_prime, norm
@@ -127,12 +158,13 @@ def best_match(A_pyramid, A_prime_pyramid, B_pyramid, B_prime_pyramid, s, l, i_b
 		return i_a_app, j_a_app
 
 	# Compute neighborhood feature vector distances
-	F_q, pixels = construct_F(i_b, j_b, l, B_pyramid, B_prime_pyramid)
+	F_q, pixels = construct_F(i_b, j_b, l, B_pyramid, B_prime_pyramid, is_A=False)
 	F_app = construct_F(i_a_app, j_a_app, l, A_pyramid, A_prime_pyramid, pixels=pixels)
 	F_coh = construct_F(i_a_coh, j_a_coh, l, A_pyramid, A_prime_pyramid, pixels=pixels)
 
 	d_app = compute_distance(F_app, F_q)
 	d_coh = compute_distance(F_coh, F_q)
+	print(d_app, d_coh)
 
 	if d_coh > d_app * (1 + 2**(L - l) * K):
 		return i_a_app, j_a_app
@@ -164,4 +196,4 @@ if __name__ == '__main__':
 	B_prime = create_image_analogy(A, A_prime, B)
 	plt.imshow(B_prime)
 	plt.show()
-	# plt.imsave(OUTPUT + B_PRIME_NAME, B_prime)
+	plt.imsave(OUTPUT + B_PRIME_NAME, B_prime)
