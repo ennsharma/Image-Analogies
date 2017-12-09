@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import skimage.io as skio
 from skimage.transform import rescale
 from sklearn.neighbors import LSHForest
+import os, errno
+
 
 # Hyperparameters
 L = 3
@@ -204,5 +206,11 @@ if __name__ == '__main__':
     A_prime = plt.imread(INPUT + A_PRIME_NAME)
     B = plt.imread(INPUT + B_NAME)
     B_prime = create_image_analogy(A, A_prime, B)
-    
+
+    try:
+        os.makedirs(OUTPUT)
+    except:
+        pass
+    # skio saves at higher quality. saving both so we can choose.
     plt.imsave(OUTPUT + B_PRIME_NAME, B_prime/255.)
+    skio.imsave(OUTPUT + "skio" + B_PRIME_NAME, B_prime/255.)
