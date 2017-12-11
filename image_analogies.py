@@ -3,6 +3,9 @@ import matplotlib.pyplot as plt
 import skimage.io as skio
 from skimage.transform import rescale
 from sklearn.neighbors import LSHForest
+from skimage.color import rgb2yiq, yiq2rgb
+import os, errno
+import nmslib
 
 # Hyperparameters
 L = 1
@@ -25,10 +28,12 @@ GAUSSIAN_LARGE = np.array([[1, 4,  6,  4,  1],
 INPUT = './input/'
 OUTPUT = './output/'
 
-A_NAME = 'C.jpg'
-A_PRIME_NAME = 'C_prime.jpg'
-B_NAME = 'D.jpg'
-B_PRIME_NAME = 'D_prime.jpg'
+A_NAME = 'A.jpg'
+A_PRIME_NAME = 'B.jpg'
+B_NAME = 'A_prime.jpg'
+B_PRIME_NAME = 'B_prime.jpg'
+
+USE_LUMINANCE = True
 
 # Feature Vector Storage
 vector_cache = {}
@@ -117,11 +122,13 @@ def construct_lshf(pyramid, prime_pyramid, l, query, offsets):
                 idx += 1
     X_train = np.array(X_train)
 
-    # Construct LSHF
-    lshf = LSHForest()
-    lshf.fit(X_train)
-    lshf_cache[(l, query.shape)] = (lshf, X_train, idx_map)
-    return lshf, X_train, idx_map
+    # Construct NN model
+    index = nmslib.init(method='hnsw', space='cosinesimil')
+    index.addDataPointBatch(X_train)
+    index.createIndex({'post': 2}, print_progress=True)
+    lshf_cache[(l, query.shape)] = (index, X_train, idx_map)
+
+    return index, X_train, idx_map
 
 def compute_weighted_difference(normalized_1, weights_1, normalized_2, weights_2):
     difference = np.zeros(normalized_1.shape)
@@ -135,14 +142,22 @@ def compute_distance(F_1, F_2):
     difference = compute_weighted_difference(normalized_1, weights_1, normalized_2, weights_2)
     return np.linalg.norm(difference)
 
+def compute_luminance_transforms(A, B):
+    A, B = rgb2yiq(A), rgb2yiq(B)
+    lum_A, lum_B = A[:,:,0], B[:,:,0]
+    mu_A, std_A = np.mean(lum_A), np.std(lum_A)
+    mu_B, std_B = np.mean(lum_B), np.std(lum_B)
+    return np.vectorize(lambda x: (std_A/std_B)*(x - mu_A) + mu_B), np.vectorize(lambda x: (std_B/std_A)(x - mu_B) + mu_A)
+
 # Texture Synthesis
 def best_approximate_match(A_pyramid, A_prime_pyramid, B_pyramid, B_prime_pyramid, s, l, i_b, j_b):
     # Construct feature vectors
     features, offsets = construct_F(i_b, j_b, l, B_pyramid, B_prime_pyramid, is_A=False)
     query = construct_normalized_vector(features)[0]
     lshf, X_train, idx_map = construct_lshf(A_pyramid, A_prime_pyramid, l, query, offsets)
-    _, indices = lshf.kneighbors([query], n_neighbors=1)
-    return idx_map[indices[0][0]]
+    ids, indices = lshf.knnQuery(query, k=1)
+    print(ids)
+    return idx_map[ids[0]]
 
 def best_coherence_match(A_pyramid, A_prime_pyramid, B_pyramid, B_prime_pyramid, s, l, i, j):
     best_i_prime, best_j_prime, min_norm = None, None, float("inf")
@@ -202,7 +217,23 @@ def create_image_analogy(A, A_prime, B):
 if __name__ == '__main__':
     A = plt.imread(INPUT + A_NAME)
     A_prime = plt.imread(INPUT + A_PRIME_NAME)
-    B = plt.imread(INPUT + B_NAME)[:,:,:3]
+    B = plt.imread(INPUT + B_NAME)
+    if USE_LUMINANCE:
+        transform_func, inverse_transform_func = compute_luminance_transforms(A, B)
+        A[:,:,0] = transform_func(A[:,:,0])
+        A_prime[:,:,0] = transform_func(A[:,:,0])
+        B[:,:,0] = transform_func(B[:,:,0])
+    print(A.shape)
+    print(B.shape)
+    print(A_prime.shape)
+
     B_prime = create_image_analogy(A, A_prime, B)
-    
+    if USE_LUMINANCE: 
+        B_prime[:,:,0] = inverse_transform_func(B_prime[:,:,0])
+
+    try:
+        os.makedirs(OUTPUT)
+    except:
+        pass
     plt.imsave(OUTPUT + B_PRIME_NAME, B_prime/255.)
+    # skio.imsave(OUTPUT + "skio" + B_PRIME_NAME, B_prime/255.)
