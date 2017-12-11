@@ -5,8 +5,8 @@ from skimage.transform import rescale
 from sklearn.neighbors import LSHForest
 
 # Hyperparameters
-L = 3
-K = 0.5
+L = 1
+K = 0.75
 
 # Kernels
 GAUSSIAN_SMALL = np.array([[1, 2, 1],
@@ -14,21 +14,21 @@ GAUSSIAN_SMALL = np.array([[1, 2, 1],
                            [1, 2, 1]
                  ]) / 16
 
-GAUSSIAN_LARGE = np.array([[1, 4, 6, 4, 1],
+GAUSSIAN_LARGE = np.array([[1, 4,  6,  4,  1],
                            [4, 16, 24, 16, 4],
                            [6, 24, 36, 24, 6],
                            [4, 16, 24, 16, 4],
-                           [1, 4, 6, 4, 1]
+                           [1, 4,  6,  4,  1]
                  ]) / 256
 
 # File Constants
 INPUT = './input/'
 OUTPUT = './output/'
 
-A_NAME = 'A.jpg'
-A_PRIME_NAME = 'A_prime.jpg'
-B_NAME = 'B.jpg'
-B_PRIME_NAME = 'B_prime.jpg'
+A_NAME = 'C.jpg'
+A_PRIME_NAME = 'C_prime.jpg'
+B_NAME = 'D.jpg'
+B_PRIME_NAME = 'D_prime.jpg'
 
 # Feature Vector Storage
 vector_cache = {}
@@ -69,7 +69,7 @@ def construct_F(i, j, l, pyramid, pyramid_prime, offsets=None, is_A=True):
             features = high_res_bp_features + high_res_b_features + low_res_bp_features + low_res_b_features
         else:
             features = high_res_bp_features + high_res_b_features
-        vector_cache[(i, j, l, is_A)] = features
+        vector_cache[(i, j, l, is_A, size)] = features
         return features
     else:
         high_res_bp_features, high_res_bp_offsets = get_features_and_offsets(i, j, 2, l, pyramid_prime, GAUSSIAN_LARGE)
@@ -202,7 +202,7 @@ def create_image_analogy(A, A_prime, B):
 if __name__ == '__main__':
     A = plt.imread(INPUT + A_NAME)
     A_prime = plt.imread(INPUT + A_PRIME_NAME)
-    B = plt.imread(INPUT + B_NAME)
+    B = plt.imread(INPUT + B_NAME)[:,:,:3]
     B_prime = create_image_analogy(A, A_prime, B)
     
     plt.imsave(OUTPUT + B_PRIME_NAME, B_prime/255.)
