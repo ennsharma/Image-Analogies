@@ -4,11 +4,12 @@ import skimage.io as skio
 from skimage.transform import rescale
 from sklearn.neighbors import LSHForest
 import os, errno
+import nmslib
 
 
 # Hyperparameters
-L = 3
-K = 0.5
+L = 1
+K = 20
 
 # Kernels
 GAUSSIAN_SMALL = np.array([[1, 2, 1],
@@ -27,10 +28,10 @@ GAUSSIAN_LARGE = np.array([[1, 4, 6, 4, 1],
 INPUT = './input/'
 OUTPUT = './output/'
 
-A_NAME = 'A.jpg'
-A_PRIME_NAME = 'A_prime.jpg'
-B_NAME = 'B.jpg'
-B_PRIME_NAME = 'B_prime.jpg'
+A_NAME = 'A_fruit.jpg'
+A_PRIME_NAME = 'B_fruit.jpg'
+B_NAME = 'A_prime_fruit.jpg'
+B_PRIME_NAME = 'B_prime_fruit.jpg'
 
 # Feature Vector Storage
 vector_cache = {}
@@ -120,10 +121,16 @@ def construct_lshf(pyramid, prime_pyramid, l, query, offsets):
     X_train = np.array(X_train)
 
     # Construct LSHF
-    lshf = LSHForest()
-    lshf.fit(X_train)
-    lshf_cache[(l, query.shape)] = (lshf, X_train, idx_map)
-    return lshf, X_train, idx_map
+    # lshf = LSHForest()
+    # lshf.fit(X_train)
+    # lshf_cache[(l, query.shape)] = (lshf, X_train, idx_map)
+    # return lshf, X_train, idx_map
+    index = nmslib.init(method='hnsw', space='cosinesimil')
+    index.addDataPointBatch(X_train)
+    index.createIndex({'post': 2}, print_progress=True)
+    lshf_cache[(l, query.shape)] = (index, X_train, idx_map)
+
+    return index, X_train, idx_map
 
 def compute_weighted_difference(normalized_1, weights_1, normalized_2, weights_2):
     difference = np.zeros(normalized_1.shape)
@@ -143,8 +150,9 @@ def best_approximate_match(A_pyramid, A_prime_pyramid, B_pyramid, B_prime_pyrami
     features, offsets = construct_F(i_b, j_b, l, B_pyramid, B_prime_pyramid, is_A=False)
     query = construct_normalized_vector(features)[0]
     lshf, X_train, idx_map = construct_lshf(A_pyramid, A_prime_pyramid, l, query, offsets)
-    _, indices = lshf.kneighbors([query], n_neighbors=1)
-    return idx_map[indices[0][0]]
+    ids, indices = lshf.knnQuery(query, k=1)
+    print(ids)
+    return idx_map[ids[0]]
 
 def best_coherence_match(A_pyramid, A_prime_pyramid, B_pyramid, B_prime_pyramid, s, l, i, j):
     best_i_prime, best_j_prime, min_norm = None, None, float("inf")
@@ -205,12 +213,16 @@ if __name__ == '__main__':
     A = plt.imread(INPUT + A_NAME)
     A_prime = plt.imread(INPUT + A_PRIME_NAME)
     B = plt.imread(INPUT + B_NAME)
+
+    # A = rescale(A, .3)
+    # A_prime = rescale(A_prime, .3)
+    # B = rescale(B, .3)
+
     B_prime = create_image_analogy(A, A_prime, B)
 
     try:
         os.makedirs(OUTPUT)
     except:
         pass
-    # skio saves at higher quality. saving both so we can choose.
     plt.imsave(OUTPUT + B_PRIME_NAME, B_prime/255.)
-    skio.imsave(OUTPUT + "skio" + B_PRIME_NAME, B_prime/255.)
+    # skio.imsave(OUTPUT + "skio" + B_PRIME_NAME, B_prime/255.)
