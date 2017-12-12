@@ -143,7 +143,6 @@ def compute_distance(F_1, F_2):
     return np.linalg.norm(difference)
 
 def compute_luminance_transforms(A, B):
-    A, B = rgb2yiq(A), rgb2yiq(B)
     lum_A, lum_B = A[:,:,0], B[:,:,0]
     mu_A, std_A = np.mean(lum_A), np.std(lum_A)
     mu_B, std_B = np.mean(lum_B), np.std(lum_B)
@@ -219,17 +218,16 @@ if __name__ == '__main__':
     A_prime = plt.imread(INPUT + A_PRIME_NAME)
     B = plt.imread(INPUT + B_NAME)
     if USE_LUMINANCE:
+        A, A_prime, B = rgb2yiq(A), rgb2yiq(A_prime), rgb2yiq(B)
         transform_func, inverse_transform_func = compute_luminance_transforms(A, B)
         A[:,:,0] = transform_func(A[:,:,0])
-        A_prime[:,:,0] = transform_func(A[:,:,0])
+        A_prime[:,:,0] = transform_func(A_prime[:,:,0])
         B[:,:,0] = transform_func(B[:,:,0])
-    print(A.shape)
-    print(B.shape)
-    print(A_prime.shape)
 
     B_prime = create_image_analogy(A, A_prime, B)
     if USE_LUMINANCE: 
         B_prime[:,:,0] = inverse_transform_func(B_prime[:,:,0])
+        B_prime = yiq2rgb(B_prime)
 
     try:
         os.makedirs(OUTPUT)
