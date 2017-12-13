@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html>
+    
+    <head>
+        <meta charset="utf-8">
+        <title>Final Project</title>
+        <link rel="stylesheet" href="main.css">
+    </head>
+    
+    <body>
+        
+        <h1>CS 194-26 Final Project</h1>
+        <h1>Image Analogies</h1>
+        <h2>Nikhil Sharma and Sahil Upadhyay</h2>
+        <br>
+        <h2>Abstract</h2>
+        <p>
+        Given an image A, a related image A', and a new image B, our goal in this project is to be able to compute an image B' that is related to B in the same way that A' is related to A. This concept will be referred to as an image analogy. 
+        </p>
+        <p>
+        The process of generating image analogies consists of two stages. The first is a learning phase, in which our code takes in two images; one of these images 
+            is a "filtered" or somehow adjusted version of the other. We compute a relationship between these two images in this step. The next stage is the application phase, in which is learned filter is applied to the target image to generate a filtered version of it. This change is be analogous to the change demonstrated between the two original inputs.
+        </p>
+        <p>
+        There are many different challenges that arise when attempting to perform this task. Given A, A', and B, we want to generate a B' that presents a balance between the features present in B, and the relationship that maps A to A'. This proved do be difficult when A and B were very dissimilar images, as was often the case; we encountered a wide array of color and composition differences between pairs of A and B images.
+        </p>
+        <p>
+        Another challenge was making sure that our algorithm was able to run in a reasonable amount of time. The procedure we envisioned involved first going through all of the pixels in A and A' to learn the correspondences between them. Then, we would go through all of the pixels in B and search for the best match for each of them. This procedure could clearly become computationally expensive quickly, which would be an issue when testing and generating results.
+        </p>
+        <p>
+        One more challenge that we faced was figuring out what sorts of relationships would be picked up by our algorithm and could be successfully translated. For instance, since pixel relationships were mapped out on a small local scale, we weren't certain whether that would prevent prominent, high-level features from being picked up and translated.
+        </p>
+        
+        <h2>Algorithm</h2>
+        <p>
+        Include stuff about rgb vs luminance.
+        </p>
+        
+        
+        <h2>Examples</h2>
+        <h3>Blur filter</h3>
+        <p>
+            Our first tests involved using traditional image filters that we tend to see in picture editing software. The first of these is a blur filter. We applied this blur filter to a photo of a banana to get A and A'.
+        </p>
+
+        
+        <p>
+        
+            <a href="images/A_banana.jpg" target="_blank">
+                <p style="float: left; font-size: 11pt; text-align: center; width: 49%; margin-right: 1%; margin-bottom: 2em;"><img src="images/A_banana.jpg">A</p>
+            </a>
+            <a href="images/A_prime_banana.jpg" target="_blank">
+                <p style="float: left; font-size: 11pt; text-align: center; width: 49%; margin-right: 1%; margin-bottom: 2em;"><img src="images/A_prime_banana.jpg" >A'</p>
+            </a> 
+                    
+            <p style="clear: both;">
+        </p>
+        <p>
+            Then, we applied this to a new image B to get B'.
+        </p>
+        <p>
+                
+            <a href="images/B_banana.jpg" target="_blank">
+                <p style="float: left; font-size: 11pt; text-align: center; width: 99%; margin-right: 1%; margin-bottom: 2em;"><img src="images/B_banana.jpg">B</p>
+            </a>
+            <a href="images/B_prime_banana.jpg" target="_blank">
+                <p style="float: left; font-size: 11pt; text-align: center; width: 99%; margin-right: 1%; margin-bottom: 2em;"><img src="images/B_prime_banana.jpg" >B'</p>
+            </a>  
+                    
+            <p style="clear: both;">
+            
+        </p>
+        
+        <p>
+        This was the very first image that we tested our code on, and it was apparent from this point on that adjusting our hyperparameters would have a large impact on our outputs. In particular, we ended up testing different values of k, our coherence parameter, for this image and many more of our outputs.</p><p>k dictates how much our algorithm favors coherence (correspondence with neighboring pixels in the output) over accuracy (the closest matching pixel found while iterating through the image). If the balance was skewed too far in the direction of coherence, then our output image would look too different from the input to be representative of an analogy. However, if the balance was skewed too far in the direction of accuracy, then the output image would have many disjointed patches. 
+        </p>
+        <p>
+            Here is an example of the synthesized output with a k-value that is too low. You can see that there are some artifacts around the horizon, where the algorithm prioritized accurate pixel matching from the original image B instead of matching the surrounding blurred pixels in B'.
+        </p>
+        <p>
+                
+            <a href="images/B_prime_banana_artifacts.jpg" target="_blank" >
+                <p style="font-size: 11pt; text-align: center; width: 99%; margin-right: 1%; margin-bottom: 2em;"><img src="images/B_prime_banana_artifacts.jpg">B' with artifacts</p>
+            </a>
+            <p style="clear: both;">
+        </p>
+        
+        
+        <h3>Emboss filter</h3>
+        <p>
+            This was the other traditional filter that we applied to our image. We used a photo of pizza for our A, then applied the emboss filter in Photoshop to generate A'.
+        </p>
+
+        
+        <p>
+        
+            <a href="images/A_pizza.jpg" target="_blank">
+                <p style="float: left; font-size: 11pt; text-align: center; width: 49%; margin-right: 1%; margin-bottom: 2em;"><img src="images/A_pizza.jpg">A</p>
+            </a>
+            <a href="images/A_prime_pizza.jpg" target="_blank">
+                <p style="float: left; font-size: 11pt; text-align: center; width: 49%; margin-right: 1%; margin-bottom: 2em;"><img src="images/A_prime_pizza.jpg" >A'</p>
+            </a> 
+                    
+            <p style="clear: both;">
+        </p>
+        <p>
+            Then, we applied this analogy to a new image B to get B'.
+        </p>
+        <p>
+                
+            <a href="images/B_pizza.jpg" target="_blank">
+                <p style="float: left; font-size: 11pt; text-align: center; width: 99%; margin-right: 1%; margin-bottom: 2em;"><img src="images/B_pizza.jpg">B</p>
+            </a>
+            <a href="images/B_prime_pizza.jpg" target="_blank">
+                <p style="float: left; font-size: 11pt; text-align: center; width: 99%; margin-right: 1%; margin-bottom: 2em;"><img src="images/B_prime_pizza.jpg" >B'</p>
+            </a>  
+                    
+            <p style="clear: both;">
+            
+        </p>
+        
+        <p>
+        This output is pretty solid. We can see the outline of the dog's features represented. However, one difference between A' and B' is that there is a larger dynamic range in A' than in B', which results in more black and white edges in A'. B' is more gray, which makes some edges harder to discern. This could be a result of coherence matching, which would attempt to keep neighboring pixels in B' similar to each other.
+        </p>
+        
+        
+        
+        
+        <h3>Emboss filter</h3>
+        <p>
+            This was the other traditional filter that we applied to our image. We used a photo of pizza for our A, then applied the emboss filter in Photoshop to generate A'.
+        </p>
+
+        
+        <p>
+        
+            <a href="images/A_pizza.jpg" target="_blank">
+                <p style="float: left; font-size: 11pt; text-align: center; width: 49%; margin-right: 1%; margin-bottom: 2em;"><img src="images/A_pizza.jpg">A</p>
+            </a>
+            <a href="images/A_prime_pizza.jpg" target="_blank">
+                <p style="float: left; font-size: 11pt; text-align: center; width: 49%; margin-right: 1%; margin-bottom: 2em;"><img src="images/A_prime_pizza.jpg" >A'</p>
+            </a> 
+                    
+            <p style="clear: both;">
+        </p>
+        <p>
+            Then, we applied this analogy to a new image B to get B'.
+        </p>
+        <p>
+                
+            <a href="images/B_pizza.jpg" target="_blank">
+                <p style="float: left; font-size: 11pt; text-align: center; width: 99%; margin-right: 1%; margin-bottom: 2em;"><img src="images/B_pizza.jpg">B</p>
+            </a>
+            <a href="images/B_prime_pizza.jpg" target="_blank">
+                <p style="float: left; font-size: 11pt; text-align: center; width: 99%; margin-right: 1%; margin-bottom: 2em;"><img src="images/B_prime_pizza.jpg" >B'</p>
+            </a>  
+                    
+            <p style="clear: both;">
+            
+        </p>
+        
+        <p>
+        This output is pretty solid. We can see the outline of the dog's features represented. However, one difference between A' and B' is that there is a larger dynamic range in A' than in B', which results in more black and white edges in A'. B' is more gray, which makes some edges harder to discern. This could be a result of coherence matching, which would attempt to keep neighboring pixels in B' similar to each other.
+        </p>
+        
+        
+        
+        
+        
+        
+        <h3>Oil Painting Texture Transfer</h3>
+        <p>
+            In this example, we first applied an oil painting texture to an image A to generate A'. This made the details in the image swirl into each other.
+        </p>
+
+        
+        <p>
+        
+            <a href="images/A_flower.jpg" target="_blank">
+                <p style="float: left; font-size: 11pt; text-align: center; width: 49%; margin-right: 1%; margin-bottom: 2em;"><img src="images/A_flower.jpg">A</p>
+            </a>
+            <a href="images/A_prime_flower.jpg" target="_blank">
+                <p style="float: left; font-size: 11pt; text-align: center; width: 49%; margin-right: 1%; margin-bottom: 2em;"><img src="images/A_prime_flower.jpg" >A'</p>
+            </a> 
+                    
+            <p style="clear: both;">
+        </p>
+        <p>
+            Then, we applied this analogy to a new image B to get B'.
+        </p>
+        <p>
+                
+            <a href="images/B_flower.jpg" target="_blank">
+                <p style="float: left; font-size: 11pt; text-align: center; width: 99%; margin-right: 1%; margin-bottom: 2em;"><img src="images/B_flower.jpg">B</p>
+            </a>
+            <a href="images/B_prime_flower.jpg" target="_blank">
+                <p style="float: left; font-size: 11pt; text-align: center; width: 99%; margin-right: 1%; margin-bottom: 2em;"><img src="images/B_prime_flower.jpg" >B'</p>
+            </a>  
+                    
+            <p style="clear: both;">
+            
+        </p>
+        
+        <p>
+        This was one of the more challenging outputs to create. We had to play with a wide range of k values to reach this point. The issue was that outside of a very narrow range of values, we would end up with a pretty incomprehensible B' that didn't match B. One of the reasons for this may have been that there is a pretty cluttered background in this image, with varying levels of luminance of focus, that could have thrown off our matching algorithms.
+        </p>
+        
+        <h3>Watercolor Texture Transfer</h3>
+        <p>
+            In this example, we applied a watercolor painting texture to an image A to generate A'. This had the effect of separating gradients of color into segmented, homogenous blocks. It also  hid some of the minute details in the image and seemed to accentuate shadows.
+        </p>
+
+        
+        <p>
+        
+            <a href="images/A_fruit.jpg" target="_blank">
+                <p style="float: left; font-size: 11pt; text-align: center; width: 49%; margin-right: 1%; margin-bottom: 2em;"><img src="images/A_fruit.jpg">A</p>
+            </a>
+            <a href="images/A_prime_fruit.jpg" target="_blank">
+                <p style="float: left; font-size: 11pt; text-align: center; width: 49%; margin-right: 1%; margin-bottom: 2em;"><img src="images/A_prime_fruit.jpg" >A'</p>
+            </a> 
+                    
+            <p style="clear: both;">
+        </p>
+        <p>
+            Then, we applied this analogy to a new image B to get B'. Our first few naive attempts were not that successful, which was due to the fact that watercolors tend to contain large, broad brush strokes. These high-level image features did not seem to be picked up by our algorithm particularly well, since the matching process only considers pixels in the immediate vicinity and not those further away. However, with the use of image pyramids, we were able to build up our output starting at smaller scales and increasing resolution from that point on. In this manner, by using smaller versions of A' and B to start, we were able to extract strong relationships between neighboring pixels and later extend them to higher pyramid levels.
+        </p>
+        <p>
+                
+            <a href="images/B_fruit.jpg" target="_blank">
+                <p style="float: left; font-size: 11pt; text-align: center; width: 99%; margin-right: 1%; margin-bottom: 2em;"><img src="images/B_fruit.jpg">B</p>
+            </a>
+            <a href="images/B_prime_fruit.jpg" target="_blank">
+                <p style="float: left; font-size: 11pt; text-align: center; width: 99%; margin-right: 1%; margin-bottom: 2em;"><img src="images/B_prime_fruit.jpg" >B'</p>
+            </a>  
+                    
+            <p style="clear: both;">
+            
+        </p>
+        
+        <p>
+        We were very pleased by this output. It matched the features of A' very well while maintaining a very close similarity to B. 
+        </p>
+        
+        <h3>Texture-by-numbers</h3>
+        <p>
+            In this example, we took a real-world image and made that our A', then made a simple blockish painted version of it that distinguished between the main textures of the image. This simple version became our A.
+        </p>
+
+        
+        <p>
+        
+            <a href="images/A_field.jpg" target="_blank">
+                <p style="float: left; font-size: 11pt; text-align: center; width: 49%; margin-right: 1%; margin-bottom: 2em;"><img src="images/A_field.jpg">A</p>
+            </a>
+            <a href="images/A_prime_field.jpg" target="_blank">
+                <p style="float: left; font-size: 11pt; text-align: center; width: 49%; margin-right: 1%; margin-bottom: 2em;"><img src="images/A_prime_field.jpg" >A'</p>
+            </a> 
+                    
+            <p style="clear: both;">
+        </p>
+        <p>
+            Then, we constructed a differently painted version of A to generate some B. The goal was to take B, which contained the locations of different textures, and apply the corresponding textures to it to create a realistic and coherent output.
+        </p>
+        <p>
+                
+            <a href="images/B_field.jpg" target="_blank">
+                <p style="float: left; font-size: 11pt; text-align: center; width: 99%; margin-right: 1%; margin-bottom: 2em;"><img src="images/B_field.jpg">B</p>
+            </a>
+            <a href="images/B_prime_field.jpg" target="_blank">
+                <p style="float: left; font-size: 11pt; text-align: center; width: 99%; margin-right: 1%; margin-bottom: 2em;"><img src="images/B_prime_field.jpg" >B'</p>
+            </a>  
+                    
+            <p style="clear: both;">
+            
+        </p>
+        
+        <p>
+        This output is pretty satisfactory. Each of the four regions contains its corresponding texture. We see that some textures "leak" into other ones (such as the red flowers on the dark green hills); this arises because we want to keep our output as coherent as possible, which allows for some inaccurate matches to take place. 
+        </p>
+        <p>
+        We also applied our texture-by-numbers algorithm to one of the sample sets of images provided in the paper. The following A, A', and B are from the paper, and we generated B'.
+        </p>
+        
+        <p>
+        
+            <a href="images/A.jpg" target="_blank">
+                <p style="float: left; font-size: 11pt; text-align: center; width: 99%; margin-right: 1%; margin-bottom: 2em;"><img src="images/A.jpg">A</p>
+            </a>
+            <p style="clear: both;">
+            <a href="images/A_prime.jpg" target="_blank">
+                <p style="float: left; font-size: 11pt; text-align: center; width: 99%; margin-right: 1%; margin-bottom: 2em;"><img src="images/A_prime.jpg" >A'</p>
+            </a>  
+            <p style="clear: both;">
+            <a href="images/B.jpg" target="_blank">
+                <p style="float: left; font-size: 11pt; text-align: center; width: 99%; margin-right: 1%; margin-bottom: 2em;"><img src="images/B.jpg" >B</p>
+            </a> 
+                <p style="clear: both;">
+            <a href="images/B_prime.jpg" target="_blank">
+                <p style="float: left; font-size: 11pt; text-align: center; width: 99%; margin-right: 1%; margin-bottom: 2em;"><img src="images/B_prime.jpg" >B'</p>
+            </a> 
+                    
+            <p style="clear: both;">
+        </p>
+        
+        <p>
+        We found that this was a better result than our first attempt at texture-by-numbers. This is partially because there are a larger variety of textures that are more intricately mapped out, which helps hide imperfections that arise. Furthermore, the use of gradients to modify the lighting throughout B' makes the output look more realistic.
+        </p>
+        
+    </body>
+</html>
