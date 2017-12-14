@@ -18,24 +18,42 @@
         Given an image A, a related image A', and a new image B, our goal in this project is to be able to compute an image B' that is related to B in the same way that A' is related to A. This concept will be referred to as an image analogy. 
         </p>
         <p>
-        The process of generating image analogies consists of two stages. The first is a learning phase, in which our code takes in two images; one of these images 
-            is a "filtered" or somehow adjusted version of the other. We compute a relationship between these two images in this step. The next stage is the application phase, in which is learned filter is applied to the target image to generate a filtered version of it. This change is be analogous to the change demonstrated between the two original inputs.
+        The process of generating image analogies consists of two stages. The first is a learning phase, in which our algorithm takes in two images; one of these images 
+            is a "filtered" or somehow adjusted version of the other. We compute a relationship between these two images in this step. The next stage is the application phase, in which the learned relationship is applied to the target image to generate a correspondingly modified version of it. This change is be analogous to the change demonstrated between the two original inputs.
         </p>
-        <p>
-        There are many different challenges that arise when attempting to perform this task. Given A, A', and B, we want to generate a B' that presents a balance between the features present in B, and the relationship that maps A to A'. This proved do be difficult when A and B were very dissimilar images, as was often the case; we encountered a wide array of color and composition differences between pairs of A and B images.
-        </p>
-        <p>
-        Another challenge was making sure that our algorithm was able to run in a reasonable amount of time. The procedure we envisioned involved first going through all of the pixels in A and A' to learn the correspondences between them. Then, we would go through all of the pixels in B and search for the best match for each of them. This procedure could clearly become computationally expensive quickly, which would be an issue when testing and generating results.
-        </p>
-        <p>
-        One more challenge that we faced was figuring out what sorts of relationships would be picked up by our algorithm and could be successfully translated. For instance, since pixel relationships were mapped out on a small local scale, we weren't certain whether that would prevent prominent, high-level features from being picked up and translated.
-        </p>
+                <br>
+
         
         <h2>Algorithm</h2>
         <p>
-        Include stuff about rgb vs luminance.
+        The image analogies algorithm works via a computational photography analog of the grade-school A:A'::B:B' paradigm. In words, it is of the form "A is to A' as B is to B'." 
+        </p>
+        <p>Input images A, A' and B are provided as inputs, and the algorithm learns the relationship between A and A' according to a specified feature space, attempting to apply this same relationship to B and a newly generated B'. More exactingly, image pyramids (with subsampling rate 1/2)  are generated for the three inputs as well as a corresponding pyramid for B' (initialized with all 0s). Then, we fill in each pixel in B' via a <font face="Courier">BestMatch</font> procedure, which matches the best feature from A' and uses the relevant feature components from this match to synthesize the new B' pixel. Each feature is specified as the concatenation of some component(s) (e.g. RGB, luminance, etc.) from the pixel in question and the 5x5 window of pixels around it and the 3x3 window of pixels from the lower-level pyramid, as well as the windows from the corresponding related image (A and A', B and B'). Naturally, we omit unfilled pixels in B' from this representation. 
+        </p>
+        <p>
+            In this manner, feature vectors are constructed for B/B' and compared to the feature vector for each pixel in A/A'; the elements of the best match are selected for transcription. <font face="Courier">BestMatch</font> selects this match via a synthesis of approximate matching and coherence matching - approximate matching has the goal of selecting the pixel in A' that has the closest feature vector to the corresponding pixel in B' (done via ANN), whereas coherence matching tries to maximize the "flow" of the image as something human-interpretable and in  correspondence with B. The selection between the two pixels matched by these subroutines is done via a weighted comparison, whereby the weight is a tunable hyperparameter whose value is specified depending on the type of filter / other image technique we are trying to apply. Once the <font face="Courier">BestMatch</font> procedure determines a match for all pixels in the top level image pyramid for B', the synthesis is complete.
+        </p>
+                <br>
+
+        <h2>Challenges</h2>
+        <p>
+        There were many different challenges that arose when attempting to perform this task. Given A, A', and B, we want to generate a B' that presents a balance between 1) the features present in B, and 2) the relationship that maps A to A'. This proved do be difficult when A and B were very dissimilar images, as was often the case; we encountered a wide array of color and composition differences between pairs of A and B images.
+        In order to address this, we ended up testing different values of k, our coherence parameter, for each of our outputs. k dictates how much our algorithm favors coherence (correspondence with neighboring pixels in the output) over accuracy (the closest matching pixel found while iterating through the image). If the parameter is skewed too far in the direction of coherence, then our output image would look too different from the input to be considered a proper analogy. However, if the parameter is skewed too far in the direction of accuracy, then the output image would have many disjointed patches. For each B', we went through extensive tests with different k-values to determine a proper balance.
+        </p>
+        <p>
+        Next, we realized that feature matching using pixels' RGB values wasn't always the best idea. Especially for A/B image pairs that contained very dissimilar colors, our algorithm had issues finding  "correct" matches. To address this issue, we remapped our images for some of our inputs from RGB to the YIQ color space, in which the Y channel represents luminance. Then, we utilized just luminance as our distance metric for <font face="Courier">BestMatch</font>, which had two benefits. The first was our best matches seemed perceptually closer than those returned using RGB, due to how our eyes are more sensitive to changes in luminance than to color. The second was that we experienced a non-trivial speedup in our matching algorithm, since our features were now one third of the original size. Once the matching was complete, we mapped the outputs back to RGB to display the results in color. This approach resulted in more ideal outputs for the blur filter, oil painting texture transfer, and the watercolor painting texture transfer images.
+        
         </p>
         
+        <p>
+        Another challenge that we anticipated was figuring out what sorts of relationships would be picked up by our algorithm and could be successfully translated. For instance, since pixel relationships were mapped out on a small local scale, we weren't certain whether that would prevent prominent, high-level features from being picked up and translated. However, with the use of image pyramids, we were able to map out relationships starting at smaller scales and increasing in resolution from that point on. In this manner, by using smaller versions of our input images to start, we were able to extract strong relationships at lower resolutions, which translated to larger features when extended to larger pyramid levels.
+        </p>
+        
+        <p>
+        One more challenge was making sure that our algorithm was able to run in a reasonable amount of time. The procedure we envisioned involved first going through all of the pixels in A and A' to learn the correspondences between them. Then, we would go through all of the pixels in B and search for the best match for each of them. This procedure could clearly become computationally expensive quickly, which would be an issue when testing and generating results. Ensuring that we used NumPy's vectorized computation where possible resulted in some speedups. Additionally, the YIQ luminance remapping described earlier was helpful as well.
+        </p>
+                <br>
+
         
         <h2>Examples</h2>
         <h3>Blur filter</h3>
@@ -72,10 +90,10 @@
         </p>
         
         <p>
-        This was the very first image that we tested our code on, and it was apparent from this point on that adjusting our hyperparameters would have a large impact on our outputs. In particular, we ended up testing different values of k, our coherence parameter, for this image and many more of our outputs.</p><p>k dictates how much our algorithm favors coherence (correspondence with neighboring pixels in the output) over accuracy (the closest matching pixel found while iterating through the image). If the balance was skewed too far in the direction of coherence, then our output image would look too different from the input to be representative of an analogy. However, if the balance was skewed too far in the direction of accuracy, then the output image would have many disjointed patches. 
+        This was the very first image that we tested our code on, and it was apparent from this point on that adjusting our hyperparameters would have a large impact on our outputs. 
         </p>
         <p>
-            Here is an example of the synthesized output with a k-value that is too low. You can see that there are some artifacts around the horizon, where the algorithm prioritized accurate pixel matching from the original image B instead of matching the surrounding blurred pixels in B'.
+            The following is an example of the synthesized output with a k-value that is slightly too low. You can see that there are some artifacts around the horizon, where the algorithm prioritized accurate pixel matching from the original image B instead of matching the surrounding blurred pixels in B'.
         </p>
         <p>
                 
@@ -84,7 +102,8 @@
             </a>
             <p style="clear: both;">
         </p>
-        
+                <br>
+
         
         <h3>Emboss filter</h3>
         <p>
@@ -120,52 +139,12 @@
         </p>
         
         <p>
-        This output is pretty solid. We can see the outline of the dog's features represented. However, one difference between A' and B' is that there is a larger dynamic range in A' than in B', which results in more black and white edges in A'. B' is more gray, which makes some edges harder to discern. This could be a result of coherence matching, which would attempt to keep neighboring pixels in B' similar to each other.
+        This output is pretty solid. We can see the outline of the dog's features represented. However, one difference between A' and B' is that A' has higher contrast levels, which results in stronger black and white edges in A'. B' is more gray overall, which makes some edges harder to discern. This could be a result of coherence matching, which would attempt to keep neighboring pixels in B' similar to each other, thereby reducing overall contrast in the image.
         </p>
         
         
         
-        
-        <h3>Emboss filter</h3>
-        <p>
-            This was the other traditional filter that we applied to our image. We used a photo of pizza for our A, then applied the emboss filter in Photoshop to generate A'.
-        </p>
-
-        
-        <p>
-        
-            <a href="images/A_pizza.jpg" target="_blank">
-                <p style="float: left; font-size: 11pt; text-align: center; width: 49%; margin-right: 1%; margin-bottom: 2em;"><img src="images/A_pizza.jpg">A</p>
-            </a>
-            <a href="images/A_prime_pizza.jpg" target="_blank">
-                <p style="float: left; font-size: 11pt; text-align: center; width: 49%; margin-right: 1%; margin-bottom: 2em;"><img src="images/A_prime_pizza.jpg" >A'</p>
-            </a> 
-                    
-            <p style="clear: both;">
-        </p>
-        <p>
-            Then, we applied this analogy to a new image B to get B'.
-        </p>
-        <p>
-                
-            <a href="images/B_pizza.jpg" target="_blank">
-                <p style="float: left; font-size: 11pt; text-align: center; width: 99%; margin-right: 1%; margin-bottom: 2em;"><img src="images/B_pizza.jpg">B</p>
-            </a>
-            <a href="images/B_prime_pizza.jpg" target="_blank">
-                <p style="float: left; font-size: 11pt; text-align: center; width: 99%; margin-right: 1%; margin-bottom: 2em;"><img src="images/B_prime_pizza.jpg" >B'</p>
-            </a>  
-                    
-            <p style="clear: both;">
-            
-        </p>
-        
-        <p>
-        This output is pretty solid. We can see the outline of the dog's features represented. However, one difference between A' and B' is that there is a larger dynamic range in A' than in B', which results in more black and white edges in A'. B' is more gray, which makes some edges harder to discern. This could be a result of coherence matching, which would attempt to keep neighboring pixels in B' similar to each other.
-        </p>
-        
-        
-        
-        
+        <br>
         
         
         <h3>Oil Painting Texture Transfer</h3>
@@ -204,7 +183,8 @@
         <p>
         This was one of the more challenging outputs to create. We had to play with a wide range of k values to reach this point. The issue was that outside of a very narrow range of values, we would end up with a pretty incomprehensible B' that didn't match B. One of the reasons for this may have been that there is a pretty cluttered background in this image, with varying levels of luminance of focus, that could have thrown off our matching algorithms.
         </p>
-        
+                <br>
+
         <h3>Watercolor Texture Transfer</h3>
         <p>
             In this example, we applied a watercolor painting texture to an image A to generate A'. This had the effect of separating gradients of color into segmented, homogenous blocks. It also  hid some of the minute details in the image and seemed to accentuate shadows.
@@ -223,7 +203,7 @@
             <p style="clear: both;">
         </p>
         <p>
-            Then, we applied this analogy to a new image B to get B'. Our first few naive attempts were not that successful, which was due to the fact that watercolors tend to contain large, broad brush strokes. These high-level image features did not seem to be picked up by our algorithm particularly well, since the matching process only considers pixels in the immediate vicinity and not those further away. However, with the use of image pyramids, we were able to build up our output starting at smaller scales and increasing resolution from that point on. In this manner, by using smaller versions of A' and B to start, we were able to extract strong relationships between neighboring pixels and later extend them to higher pyramid levels.
+            Then, we applied this analogy to a new image B to get B'. Our first few naive attempts were not that successful, which was due to the fact that watercolors tend to contain large, broad brush strokes. These high-level image features did not seem to be picked up by our algorithm particularly well, since the matching process only considers pixels in the immediate vicinity and not those further away. However, as explained earlier, the implementation of image pyramids gave our algorithm the abilitiy to properly observe and transcribe these smaller features.
         </p>
         <p>
                 
@@ -241,6 +221,11 @@
         <p>
         We were very pleased by this output. It matched the features of A' very well while maintaining a very close similarity to B. 
         </p>
+        
+        
+                <br>
+
+        
         
         <h3>Texture-by-numbers</h3>
         <p>

@@ -225,7 +225,7 @@ if __name__ == '__main__':
         B[:,:,0] = transform_func(B[:,:,0])
 
     B_prime = create_image_analogy(A, A_prime, B)
-    if USE_LUMINANCE: 
+    if USE_LUMINANCE:
         B_prime[:,:,0] = inverse_transform_func(B_prime[:,:,0])
         B_prime = yiq2rgb(B_prime)
 
