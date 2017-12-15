@@ -155,7 +155,6 @@ def best_approximate_match(A_pyramid, A_prime_pyramid, B_pyramid, B_prime_pyrami
     query = construct_normalized_vector(features)[0]
     lshf, X_train, idx_map = construct_lshf(A_pyramid, A_prime_pyramid, l, query, offsets)
     ids, indices = lshf.knnQuery(query, k=1)
-    print(ids)
     return idx_map[ids[0]]
 
 def best_coherence_match(A_pyramid, A_prime_pyramid, B_pyramid, B_prime_pyramid, s, l, i, j):
@@ -234,4 +233,3 @@ if __name__ == '__main__':
     except:
         pass
     plt.imsave(OUTPUT + B_PRIME_NAME, B_prime/255.)
-    # skio.imsave(OUTPUT + "skio" + B_PRIME_NAME, B_prime/255.)
